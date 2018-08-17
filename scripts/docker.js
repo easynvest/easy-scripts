@@ -4,7 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const spawn = require('cross-spawn')
 const glob = require('glob')
-const {cp, cd, exec, mkdir } = require('shelljs')
+const { cp, cd, exec, mkdir, which } = require('shelljs')
 const rimraf = require('rimraf')
 
 const [executor, ignoredBin, ...args] = process.argv
@@ -13,6 +13,11 @@ const buildLocal = path.join(process.cwd(), "build")
 
 const hasBuildLocal = fs.existsSync(buildLocal)
 const imageName = args[0]
+
+if(!which('docker')) {
+  console.error('Docker is required')
+  process.exit(1) 
+}
 
 if(!hasBuildLocal) {
   console.error(`Build folder '${buildLocal}' not found.`)
