@@ -1,70 +1,47 @@
-// console.log('easy-scripts kubernetes app_name app_version namespace')
-// #! /usr/bin/env node
+#! /usr/bin/env node
 
 const fs = require("fs");
 const path = require("path");
-const spawn = require("cross-spawn");
 const glob = require("glob");
-const { cp, cd, exec, mkdir, which } = require("shelljs");
+const { cd, exec, mkdir } = require("shelljs");
 const rimraf = require("rimraf");
 
 const [executor, ignoredBin, ...args] = process.argv;
 
-const buildLocal = path.join(process.cwd(), "build");
-
-const hasBuildLocal = fs.existsSync(buildLocal);
 const appName = args[0];
 const appVersion = args[1];
 const appNameSpace = args[2];
 
-if (!hasBuildLocal) {
-  console.error(`Build folder '${buildLocal}' not found.`);
-  process.exit(1);
-}
-
 if (!appName || !appVersion || !appNameSpace) {
-  console.log(`easy-scripts kubernetes <name>`);
-  console.error(`Parameter name is required.`);
+  console.log(`easy-scripts kubernetes <name> <version> <namespace>`);
+  console.error(`Parameters name, version and namespace are required.`);
   console.log(`Ex:`);
-  console.log(`easy-scripts kubernetes test.name`);
-  console.log(`Or`);
-  console.log(`easy-scripts kubernetes test.name:1.0.1`);
+  console.log(`easy-scripts kubernetes testName 1.0.0 testNameSpace`);
   process.exit(1);
 }
 
 const kubernetesPath = path.join(__dirname, "../kubernetes/");
 const outputPath = path.join(__dirname, "../out/");
-const kubernetesFiles = glob.sync(path.join(__dirname, "../kubernetes", "*"));
+const kubernetesFiles = glob.sync(path.join(kubernetesPath, "*"));
 const kubernetesOutputPath = path.join(outputPath, "kubernetes");
 rimraf.sync(kubernetesOutputPath);
 mkdir(kubernetesOutputPath);
 
+const replaceVariables = content => {
+  return content
+    .replace(/{APP_NAME}/g, appName)
+    .replace(/{APP_VERSION}/g, appVersion)
+    .replace(/{NAMESPACE}/g, appNameSpace);
+};
+
 kubernetesFiles.forEach(file => {
   const fileName = file.split("/").reverse()[0];
-  let content = fs.readFileSync(file, "utf-8");
+  const content = fs.readFileSync(file, "utf-8");
 
-  fs.writeFileSync(path.join(kubernetesOutputPath, fileName), content);
+  fs.writeFileSync(
+    path.join(kubernetesOutputPath, fileName),
+    replaceVariables(content)
+  );
 });
 
-const kubernetesOutputFiles = glob.sync(
-  path.join(__dirname, "../out/kubernetes", "*")
-);
-
-kubernetesOutputFiles.forEach((file, i) => {
-  fs.readFile(file, "utf-8", (err, data) => {
-    if (err) {
-      console.log(err);
-    }
-    let content = data.replace(/APP_NAME/g, appName);
-    content = content.replace(/APP_VERSION/g, appVersion);
-    content = content.replace(/NAMESPACE/g, appNameSpace);
-
-    fs.writeFile(file, content, err => {
-      if (err) console.log(err);
-    });
-  });
-});
-
-cp("-R", path.join(process.cwd(), "build"), kubernetesOutputPath);
-cd(kubernetesOutputPath);
-// exec(`docker build . -t ${imageName}`);
+exec(`kubectl apply -f ${path.join(kubernetesOutputPath, "deployment.yaml")}`);
