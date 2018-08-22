@@ -55,8 +55,7 @@ kubernetesOutputFiles.forEach((file, i) => {
     if (err) {
       console.log(err);
     }
-    let content;
-    content = data.replace(/APP_NAME/g, appName);
+    let content = data.replace(/APP_NAME/g, appName);
     content = content.replace(/APP_VERSION/g, appVersion);
     content = content.replace(/NAMESPACE/g, appNameSpace);
 
